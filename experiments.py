@@ -1,18 +1,18 @@
 import time
 import matplotlib.pyplot as plt
-import ocpa.algo.filtering.log.time_filtering
-from ocpa.objects.log.obj import OCEL
+import ocpa.algo.util.filtering.log.time_filtering
+from ocpa.objects.log.ocel import OCEL
 from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
 import pandas as pd
-import ocpa.algo.filtering.log.trace_filtering as trace_filtering
-import ocpa.algo.evaluation.precision_and_fitness.utils as evaluation_utils
-import ocpa.algo.evaluation.precision_and_fitness.evaluator as precision_fitness_evaluator
+#import ocpa.algo.util.filtering.log.trace_filtering as trace_filtering
+import ocpa.algo.conformance.precision_and_fitness.utils as evaluation_utils
+import ocpa.algo.conformance.precision_and_fitness.evaluator as precision_fitness_evaluator
 import ocpa.visualization.oc_petri_net.factory as vis_factory
 import ocpa.visualization.log.variants.factory as log_viz
 import ocpa.objects.log.importer.ocel.factory as import_factory
-import ocpa.algo.feature_extraction.factory as feature_extraction
-from ocpa.algo.feature_extraction import time_series
-from ocpa.algo.feature_extraction import tabular, sequential
+import ocpa.algo.predictive_monitoring.factory as feature_extraction
+from ocpa.algo.predictive_monitoring import time_series
+from ocpa.algo.predictive_monitoring import tabular, sequential
 import numpy as np
 from ast import literal_eval
 from gnn_utils import *
