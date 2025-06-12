@@ -9,7 +9,7 @@ import ocpa.algo.conformance.precision_and_fitness.utils as evaluation_utils
 import ocpa.algo.conformance.precision_and_fitness.evaluator as precision_fitness_evaluator
 import ocpa.visualization.oc_petri_net.factory as vis_factory
 import ocpa.visualization.log.variants.factory as log_viz
-import ocpa.objects.log.importer.ocel.factory as import_factory
+import ocpa.objects.log.importer.csv.factory as import_factory
 import ocpa.algo.predictive_monitoring.factory as feature_extraction
 from ocpa.algo.predictive_monitoring import time_series
 from ocpa.algo.predictive_monitoring import tabular, sequential
@@ -48,7 +48,7 @@ def std_dev(x):
 filename = "example_logs/mdl/BPI2017-Final.csv"
 ots = ["application", "offer"]
 
-
+"""
 event_df = pd.read_csv(filename, sep=',')#[:2000]
 event_df["event_timestamp"] = pd.to_datetime(event_df["event_timestamp"])
 event_df = event_df.sort_values(by='event_timestamp')
@@ -70,12 +70,22 @@ event_df["event_id"] = event_df["event_id"].astype(float).astype(int)
 event_df["event_start_timestamp"] = pd.to_datetime(event_df["event_start_timestamp"])
 #####FAKE FEATURE VALUE
 event_df["event_fake_feat"] = 1
-ocel = OCEL(event_df, ots)
+#ocel = OCEL(event_df, ots)
+"""
+
+parameters = {"obj_names":ots,
+              "val_names":[],
+              "act_name":"event_activity",
+              "time_name":"event_timestamp",
+              "sep":","}
+
+ocel = import_factory.apply(file_path=filename, parameters=parameters)
+
 t_start = time.time()
-print("Number of process executions: "+str(len(ocel.cases)))
+print("Number of process executions: "+str(len(ocel.process_executions)))
 print(str(time.time()-t_start))
 print(ocel.log)
-activities = list(set(ocel.log["event_activity"].tolist()))
+activities = list(set(ocel.log["event_activity"]))
 print(str(len(activities))+" actvities")
 F = [(feature_extraction.EVENT_REMAINING_TIME,()),
      (feature_extraction.EVENT_PREVIOUS_TYPE_COUNT,("offer",)),
