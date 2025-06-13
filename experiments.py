@@ -1,16 +1,16 @@
 import time
+import keras
 import matplotlib.pyplot as plt
-import ocpa.algo.util.filtering.log.time_filtering
 from ocpa.objects.log.ocel import OCEL
 from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
 import pandas as pd
-#import ocpa.algo.util.filtering.log.trace_filtering as trace_filtering
+import ocpa.algo.util.filtering.log.time_filtering as time_filter
 import ocpa.algo.conformance.precision_and_fitness.utils as evaluation_utils
 import ocpa.algo.conformance.precision_and_fitness.evaluator as precision_fitness_evaluator
 import ocpa.visualization.oc_petri_net.factory as vis_factory
 import ocpa.visualization.log.variants.factory as log_viz
 import ocpa.objects.log.importer.csv.factory as import_factory
-import ocpa.algo.predictive_monitoring.factory as feature_extraction
+from ocpa.algo.predictive_monitoring import factory as predictive_monitoring
 from ocpa.algo.predictive_monitoring import time_series
 from ocpa.algo.predictive_monitoring import tabular, sequential
 import numpy as np
@@ -74,7 +74,7 @@ event_df["event_fake_feat"] = 1
 """
 
 parameters = {"obj_names":ots,
-              "val_names":[],
+              "val_names":["event_RequestedAmount"],
               "act_name":"event_activity",
               "time_name":"event_timestamp",
               "sep":","}
@@ -84,16 +84,16 @@ ocel = import_factory.apply(file_path=filename, parameters=parameters)
 t_start = time.time()
 print("Number of process executions: "+str(len(ocel.process_executions)))
 print(str(time.time()-t_start))
-print(ocel.log)
-activities = list(set(ocel.log["event_activity"]))
+#print(ocel.log)
+activities = list(set(ocel.log.log["event_activity"].tolist()))
 print(str(len(activities))+" actvities")
-F = [(feature_extraction.EVENT_REMAINING_TIME,()),
-     (feature_extraction.EVENT_PREVIOUS_TYPE_COUNT,("offer",)),
-     (feature_extraction.EVENT_ELAPSED_TIME,())] + [(feature_extraction.EVENT_AGG_PREVIOUS_CHAR_VALUES,("event_RequestedAmount",max))] \
-    + [(feature_extraction.EVENT_PRECEDING_ACTIVITES,(act,)) for act in activities]
+feature_set = [(predictive_monitoring.EVENT_REMAINING_TIME,()),
+     (predictive_monitoring.EVENT_PREVIOUS_TYPE_COUNT, ("offer",)),
+     (predictive_monitoring.EVENT_ELAPSED_TIME,())] + [(predictive_monitoring.EVENT_AGG_PREVIOUS_CHAR_VALUES,("event_RequestedAmount",max))] \
+    + [(predictive_monitoring.EVENT_PRECEDING_ACTIVITIES,(act,)) for act in activities]
 
-feature_storage = feature_extraction.apply(ocel, F, [])
-feature_storage.extract_normalized_train_test_split(0.3,state = 3)
+feature_storage = predictive_monitoring.apply(ocel, feature_set, [])
+feature_storage.extract_normalized_train_test_split(test_size=0.3, state=3, scaler=StandardScaler)
 
 
 # keep list of first three events for comparability of regression use case
@@ -107,17 +107,20 @@ label_order = None
 
 accuracy_dict = {}
 
+'''
 #CASE STUDY 1 - VISUALIZING TABLE
 if True:
     print("___________________________")
     print("USE CASE 1 - Time series visualization")
     print("___________________________")
     feat_to_s = {}
-    f_in = ocpa.algo.filtering.log.time_filtering.events
+    #f_in = ocel.algo.filtering.log.time_filtering.events
+    f_in = time_filter.events
     s_time= time.time()
-    s, time_index = time_series.construct_time_series(ocel, timedelta(days=7),
-                                                      [(avg, (feature_extraction.EVENT_TYPE_COUNT,("offer",))),
-                                                       (avg, (feature_extraction.EVENT_CHAR_VALUE,("event_RequestedAmount",)))],
+    s, time_index = time_series.construct_time_series(ocel, 
+                                                      timedelta(days=7),
+                                                      [(avg, (predictive_monitoring.EVENT_TYPE_COUNT,("offer",))),
+                                                       (avg, (predictive_monitoring.EVENT_CHAR_VALUE,("event_RequestedAmount",)))],
                                                       [],
                                                       f_in)
     print("total time series: " + str(time.time() - s_time))
@@ -160,25 +163,29 @@ if True:
     plt.tight_layout()
     plt.savefig("Time_series.png",dpi=600)
 ##Case Study 2 - Regression
+
 if True:
     print("___________________________")
     print("USE CASE 2 - Regression prediction")
     print("___________________________")
-    train_table = tabular.construct_table(feature_storage, index_list = feature_storage.training_indices, exclude_events = events_to_remove)
-    test_table = tabular.construct_table(feature_storage, index_list = feature_storage.test_indices, exclude_events = events_to_remove)
+    #train_table = tabular.construct_table(feature_storage, index_list = feature_storage.train_indices, exlude_events = events_to_remove)
+    #test_table = tabular.construct_table(feature_storage, index_list = feature_storage.test_indices, exclude_events = events_to_remove)
+
+    train_table = tabular.construct_table(feature_storage, index_list = feature_storage.train_indices)
+    test_table = tabular.construct_table(feature_storage, index_list = feature_storage.test_indices)
 
 
-    y_train, y_test = train_table[F[0]], test_table[F[0]]
-    x_train, x_test = train_table.drop(F[0], axis = 1), test_table.drop(F[0], axis = 1)
+    y_train, y_test = train_table[feature_set[0]], test_table[feature_set[0]]
+    x_train, x_test = train_table.drop(feature_set[0], axis = 1), test_table.drop(feature_set[0], axis = 1)
     #y.rename(columns={f: ''.join(f) for f in y.columns}, inplace=True)
 
 
     #x_train.rename(columns={f:str(f) for f in x_train.columns}, inplace=True)
-    mapping_names = {feature_extraction.EVENT_PRECEDING_ACTIVITES: "Prec. activities:",
-                     feature_extraction.EVENT_ELAPSED_TIME: "Elapsed time",
-                     feature_extraction.EVENT_PREVIOUS_TYPE_COUNT: "Previous objects of:",
-                     feature_extraction.EVENT_AGG_PREVIOUS_CHAR_VALUES: "Max prev.:",
-                     feature_extraction.EVENT_REMAINING_TIME: "Remaining time"}
+    mapping_names = {predictive_monitoring.EVENT_PRECEDING_ACTIVITIES: "Prec. activities:",
+                     predictive_monitoring.EVENT_ELAPSED_TIME: "Elapsed time",
+                     predictive_monitoring.EVENT_PREVIOUS_TYPE_COUNT: "Previous objects of:",
+                     predictive_monitoring.EVENT_AGG_PREVIOUS_CHAR_VALUES: "Max prev.:",
+                     predictive_monitoring.EVENT_REMAINING_TIME: "Remaining time"}
     renaming_dict = dict()
     for f in x_train.columns:
         if len(f[1]) != 0:
@@ -224,26 +231,26 @@ if True:
     print("USE CASE 3 - Sequence based variant visualization")
     print("___________________________")
     #activities = list(set(ocel.log["event_activity"].tolist()))
-    F3 = [(feature_extraction.EVENT_ACTIVITY,(act,)) for act in activities] + [(feature_extraction.EVENT_TYPE_COUNT,(ot,)) for ot in ots]
-    feature_storage3 = feature_extraction.apply(ocel,F3,[])
+    F3 = [(predictive_monitoring.EVENT_ACTIVITY,(act,)) for act in activities] + [(predictive_monitoring.EVENT_TYPE_COUNT,(ot,)) for ot in ots]
+    feature_storage3 = predictive_monitoring.apply(ocel,F3,[])
     sequences = sequential.construct_sequence(feature_storage3)
     for v_id in [61]:
         print(v_id)
         c_id = ocel.variants_dict[ocel.variants[v_id]][0]
         print(sequences[c_id])
         print(len(sequences[c_id]))
-        print(len(ocel.cases[c_id]))
-        print(ocel.variant_frequency[v_id])
-
+        print(len(ocel.process_executions[c_id]))
+        print(ocel.variant_frequencies[v_id])
+'''
 #CASE Study 4 - Prediction - LSTM
 if True:
     print("___________________________")
     print("USE CASE 4 - LSTM prediction")
     print("___________________________")
     k=4
-    features = [feat for feat in F if feat != (feature_extraction.EVENT_REMAINING_TIME,())]
-    target = (feature_extraction.EVENT_REMAINING_TIME,())
-    train_sequences = sequential.construct_sequence(feature_storage, index_list=feature_storage.training_indices)
+    features = [feat for feat in feature_set if feat != (predictive_monitoring.EVENT_REMAINING_TIME,())]
+    target = (predictive_monitoring.EVENT_REMAINING_TIME,())
+    train_sequences = sequential.construct_sequence(feature_storage, index_list=feature_storage.train_indices)
     test_sequences = sequential.construct_sequence(feature_storage, index_list=feature_storage.test_indices)
 
     x_train, y_train = sequential.construct_k_dataset(train_sequences,k,features,target)
@@ -260,11 +267,12 @@ if True:
     regressor.add(LSTM(units=10))
     regressor.add(Dropout(0.1))
     regressor.add(Dense(units=1))
-    regressor.compile(optimizer='adam', loss='mean_squared_error', metrics = 'mae')
-    K.set_value(regressor.optimizer.learning_rate, 0.005)
-    best_weights_callback = tf.keras.callbacks.ModelCheckpoint('lstm_checkpoint.h5', monitor = 'val_loss', save_best_only = True, verbose = 1)
+    regressor.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae'])
+    # old: K.set_value(regressor.optimizer.learning_rate, 0.005)
+    regressor.optimizer.learning_rate.assign(0.005)
+    best_weights_callback = keras.callbacks.ModelCheckpoint('lstm_checkpoint.h5', monitor = 'val_loss', save_best_only = True, verbose = 1)
 
-    history = regressor.fit(x_train, y_train, validation_split = 0.2, epochs=30, batch_size=64, callbacks = best_weights_callback)
+    history = regressor.fit(x_train, y_train, validation_split = 0.2, epochs=3, batch_size=64, callbacks = best_weights_callback)
     regressor.load_weights('lstm_checkpoint.h5')
 
     y_pred = regressor.predict(x_test)
@@ -302,11 +310,11 @@ if True:
     shap_values = explainer.shap_values(x_train[:number_shap].reshape(x_train[:number_shap].shape[0],x_train[3].shape[0]*x_train[3].shape[1]), nsamples = 100)
     shap_values = shap_values[0].reshape(shap_values[0].shape[0],k,int(shap_values[0].shape[1]/k))
     print(shap_values[0])
-    mapping_names = {feature_extraction.EVENT_PRECEDING_ACTIVITES: "Prec. activities:",
-                     feature_extraction.EVENT_ELAPSED_TIME: "Elapsed time",
-                     feature_extraction.EVENT_PREVIOUS_TYPE_COUNT: "Previous objects of:",
-                     feature_extraction.EVENT_AGG_PREVIOUS_CHAR_VALUES: "Max prev.:",
-                     feature_extraction.EVENT_REMAINING_TIME: "Remaining time"}
+    mapping_names = {predictive_monitoring.EVENT_PRECEDING_ACTIVITIES: "Prec. activities:",
+                     predictive_monitoring.EVENT_ELAPSED_TIME: "Elapsed time",
+                     predictive_monitoring.EVENT_PREVIOUS_TYPE_COUNT: "Previous objects of:",
+                     predictive_monitoring.EVENT_AGG_PREVIOUS_CHAR_VALUES: "Max prev.:",
+                     predictive_monitoring.EVENT_REMAINING_TIME: "Remaining time"}
     renaming_dict = dict()
     for f in features:
         if len(f[1]) != 0:
@@ -356,7 +364,7 @@ if True:
     print("___________________________")
     print("USE CASE 6 - Graph neural network prediction")
     print("___________________________")
-    train_idx, val_idx = train_test_split(feature_storage.training_indices, test_size = 0.2)
+    train_idx, val_idx = train_test_split(feature_storage.train_indices, test_size = 0.2)
     x_train, y_train = generate_graph_dataset(feature_storage.feature_graphs, train_idx, ocel)
     x_val, y_val = generate_graph_dataset(feature_storage.feature_graphs, val_idx, ocel)
     x_test, y_test = generate_graph_dataset(feature_storage.feature_graphs, feature_storage.test_indices, ocel)
