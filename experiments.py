@@ -95,7 +95,6 @@ feature_set = [(predictive_monitoring.EVENT_REMAINING_TIME,()),
 feature_storage = predictive_monitoring.apply(ocel, feature_set, [])
 feature_storage.extract_normalized_train_test_split(test_size=0.3, state=3, scaler=StandardScaler)
 
-
 # keep list of first three events for comparability of regression use case
 events_to_remove = []
 for g in tqdm(feature_storage.feature_graphs):
@@ -242,6 +241,8 @@ if True:
         print(len(ocel.process_executions[c_id]))
         print(ocel.variant_frequencies[v_id])
 '''
+
+'''
 #CASE Study 4 - Prediction - LSTM
 if True:
     print("___________________________")
@@ -272,7 +273,7 @@ if True:
     regressor.optimizer.learning_rate.assign(0.005)
     best_weights_callback = keras.callbacks.ModelCheckpoint('lstm_checkpoint.h5', monitor = 'val_loss', save_best_only = True, verbose = 1)
 
-    history = regressor.fit(x_train, y_train, validation_split = 0.2, epochs=3, batch_size=64, callbacks = best_weights_callback)
+    history = regressor.fit(x_train, y_train, validation_split = 0.2, epochs=30, batch_size=64, callbacks = best_weights_callback)
     regressor.load_weights('lstm_checkpoint.h5')
 
     y_pred = regressor.predict(x_test)
@@ -346,7 +347,7 @@ if True:
         #shap.plots.waterfall(shap_values[0][0], max_display=160, show=False)
         plt.savefig('shap_lstm_instance_'+str(i)+'.png', dpi=600)
 
-
+'''
 
 
 #Case study 5 - Graph-based variant visualization
@@ -401,7 +402,7 @@ if True:
     # define GCN model
     tf.keras.backend.clear_session()
     model = GCN(24, 24)
-    optimizer = tf.keras.optimizers.Adam(lr = 0.01)
+    optimizer = tf.keras.optimizers.Adam(learning_rate = 0.01)
     loss_function = tf.keras.losses.MeanAbsoluteError()
 
     # run tensorflow training loop

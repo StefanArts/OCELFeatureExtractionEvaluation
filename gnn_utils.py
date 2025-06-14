@@ -23,7 +23,8 @@ def generate_graph_dataset(feature_graph_list, indices, ocel_object):
         graph = deepcopy(feature_graph_list[gid])
 
         # sort nodes according to timestamp
-        instance_df = ocel_object.log.loc[[n.event_id for n in graph.nodes]].copy()
+        event_ids = [n.event_id for n in graph.nodes]
+        instance_df = ocel_object.log.log.loc[event_ids].copy()
         instance_df = instance_df.sort_values('event_timestamp')
         node_id_map = {id: i for i, id in enumerate(instance_df.index)}
 
