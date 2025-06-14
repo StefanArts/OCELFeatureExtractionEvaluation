@@ -419,7 +419,7 @@ if True:
             step += 1
             dgl_batch, label_batch = train_loader.__getitem__(batch_id)
             with tf.GradientTape() as tape:
-                pred = model(dgl_batch, dgl_batch.ndata['features'])
+                pred = model(inputs=dgl_batch, features=dgl_batch.ndata['features'])
                 loss = loss_function(label_batch, pred)
 
             gradients = tape.gradient(loss, model.trainable_variables)
@@ -491,7 +491,7 @@ if True:
             new_graph.ndata['event_indices'] = test_graph.ndata['event_indices']
 
             with tf.device('CPU:0'):
-                pred = model(new_graph, new_graph.ndata['features']).numpy().squeeze()
+                pred = model(inputs=new_graph, features=new_graph.ndata['features']).numpy().squeeze()
 
             all_preds.append(pred)
         all_preds = np.array(all_preds)
