@@ -186,7 +186,7 @@ def evaluate_gnn(data_loader, gnn_model):
     labels = []
     for batch_id in tqdm(range(data_loader.__len__())):
         dgl_batch, label_batch = data_loader.__getitem__(batch_id)
-        pred = gnn_model(inputs=dgl_batch, features=dgl_batch.ndata['features']).numpy()
+        pred = gnn_model(g=dgl_batch, features=dgl_batch.ndata['features']).numpy()
         predictions.append(pred)
         labels.append(label_batch.numpy())
     predictions = np.concatenate(predictions)
